@@ -1,16 +1,21 @@
-# RaceDay RESTful API Endpoint Specification Plan
+RaceDay System - API Plan
 
-| HTTP Method | Route | Description | Role Required | Request Body | Expected Response |
+This document explains how the RaceDay system shares information between the website, mobile app, and database.
+
+ API Endpoints List
+
+| Action | Address | What It Does | Who Can Use It | What You Send | What You Get Back |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/auth/register` | Registers a new user account as Organiser or Participant. | None (Public) | `{"fullName": "John Doe", "email": "john@example.com", "password": "Pass123!", "role": "Participant"}` | `201 Created` - User created.<br>`400 Bad Request` - Validation failure.<br>`409 Conflict` - Email already exists. |
-| **POST** | `/api/auth/login` | Authenticates user credentials and returns a JWT token. | None (Public) | `{"email": "john@example.com", "password": "Pass123!"}` | `200 OK` - Returns Bearer token.<br>`401 Unauthorized` - Invalid credentials. |
-| **GET** | `/api/events` | Retrieves all active road running, walking, and cycling events. | None (Public) | `None` | `200 OK` - Array of event objects.<br>`404 Not Found` - No events available. |
-| **POST** | `/api/events` | Creates a new event record. | Organiser | `{"title": "Cape Town Cycle Tour", "eventType": "Cycling", "eventDate": "2026-10-15T06:00:00", "location": "Cape Town"}` | `201 Created` - Event details.<br>`400 Bad Request` - Invalid data.<br>`401 Unauthorized` - Missing token.<br>`403 Forbidden` - Insufficient permissions. |
-| **PUT** | `/api/events/{id}` | Updates details for an existing event. | Organiser | `{"title": "Updated Tour Title", "eventDate": "2026-10-20T06:00:00"}` | `200 OK` - Updated event object.<br>`404 Not Found` - Event ID does not exist.<br>`403 Forbidden` - Not event owner. |
-| **DELETE** | `/api/events/{id}` | Removes an event and associated categories. | Organiser | `None` | `204 No Content` - Deletion successful.<br>`404 Not Found` - Event ID not found. |
-| **POST** | `/api/categories` | Adds a distance/entry category to an event. | Organiser | `{"eventId": 1, "categoryName": "42km Open", "distanceKm": 42.2, "entryFee": 350.00}` | `201 Created` - Category object.<br>`404 Not Found` - Event not found. |
-| **GET** | `/api/categories/event/{eventId}` | Retrieves all categories for a given event. | None (Public) | `None` | `200 OK` - Array of categories.<br>`404 Not Found` - Invalid event ID. |
-| **POST** | `/api/enrolments` | Registers a participant for an event category. | Participant | `{"eventId": 1, "categoryId": 2}` | `201 Created` - Enrolment with bib number.<br>`400 Bad Request` - Category full.<br>`409 Conflict` - Already registered. |
-| **GET** | `/api/enrolments/my-enrolments` | Fetches logged-in participant's event history. | Participant | `None` | `200 OK` - Array of enrolments.<br>`401 Unauthorized` - Unauthenticated. |
-| **POST** | `/api/results` | Captures finishing times and ranks for an event. | Organiser | `{"enrolmentId": 10, "finishTime": "03:45:12", "overallRank": 14}` | `201 Created` - Result logged.<br>`400 Bad Request` - Invalid time structure. |
-| **GET** | `/api/weather/{eventId}` | Retrieves forecast or weather conditions for an event route. | Any | `None` | `200 OK` - Temperature, wind, and conditions.<br>`404 Not Found` - Weather unavailable. |
+| **GET** | `/api/v1/Events` | Shows a list of all upcoming events. | Everyone | Nothing (optional search filter like event type) | **200 OK**: List of all events |
+| **GET** | `/api/v1/Events/{id}` | Shows details for one specific event. | Everyone | The Event ID number | **200 OK**: Event details<br>**404 Not Found**: Event does not exist |
+| **POST** | `/api/v1/Events` | Creates a new race event. | Event Organisers | Event title, date, location, and description | **201 Created**: Saved event details<br>**400 Bad Request**: Missing required info |
+| **PUT** | `/api/v1/Events/{id}` | Updates an existing event's details. | Event Organisers | Event ID and updated information | **204 No Content**: Update successful<br>**404 Not Found**: Event not found |
+| **DELETE** | `/api/v1/Events/{id}` | Removes an event from the system. | Event Organisers | The Event ID number | **204 No Content**: Event deleted successfully<br>**404 Not Found**: Event not found |
+| **POST** | `/api/v1/Events/{eventId}/Categories` | Adds race distances (e.g., 5km, 10km, 21km) to an event. | Event Organisers | Event ID, category name, distance, and ticket price | **201 Created**: Saved category details<br>**404 Not Found**: Event not found |
+| **GET** | `/api/v1/Events/{eventId}/Categories` | Shows all race categories for an event. | Everyone | The Event ID number | **200 OK**: List of race categories for that event |
+| **POST** | `/api/v1/Enrolments` | Signs up a runner or cyclist for an event category. | Participants | Event ID and selected Category ID | **201 Created**: Confirmation and assigned Bib Number<br>**400 Bad Request**: Category is full |
+| **GET** | `/api/v1/Enrolments/me` | Shows a user all the events they have signed up for. | Logged-in Participants | User login token | **200 OK**: List of my event registrations<br>**401 Unauthorized**: Please log in first |
+| **POST** | `/api/v1/Results` | Saves a runner's finish time and rank. | Event Organisers | Registration ID, finish time, and rank | **201 Created**: Result saved successfully<br>**400 Bad Request**: Incorrect time format |
+| **GET** | `/api/v1/Events/{eventId}/Results` | Shows the final race leaderboard. | Everyone | The Event ID number | **200 OK**: List of finish times sorted by rank |
+| **POST** | `/api/v1/Auth/register` | Creates a new account (Organiser or Participant). | New Users | Name, email address, password, and role | **201 Created**: Account created successfully<br>**400 Bad Request**: Email already taken or invalid password |
+| **POST** | `/api/v1/Auth/login` | Logs a user into their account. | Existing Users | Email address and password | **200 OK**: Login token to access the system<br>**401 Unauthorized**: Wrong email or password |
