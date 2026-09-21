@@ -10,7 +10,7 @@ System Roles
 - **Participant**: Registers for events, views race history, and tracks stats.
 
 Documentation Included
-- `/docs/RaceDay_ERD.png` : Entity Relationship Diagram
+- `/docs/RaceDay_ERD.PNG` : Entity Relationship Diagram
 - `/docs/API_Endpoint_Plan.md` : RESTful API Endpoint Plan
 - `/docs/RaceDay_Database.sql` : Production Database Schema and Data Script
 
