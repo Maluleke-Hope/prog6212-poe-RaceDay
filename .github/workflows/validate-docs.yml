@@ -1,0 +1,39 @@
+name: Validate Documentation Files
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  validate-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Docs Folder Exists
+        run: |
+          if [ ! -d "docs" ]; then
+            echo "Error: 'docs' folder missing!"
+            exit 1
+          fi
+
+      - name: Check Required Files (*.sql and *.pdf/*.png)
+        run: |
+          SQL_COUNT=$(find docs -type f -name "*.sql" | wc -l)
+          PDF_COUNT=$(find docs -type f -name "*.pdf" | wc -l)
+          PNG_COUNT=$(find docs -type f -name "*.png" | wc -l)
+          
+          if [ $SQL_COUNT -lt 1 ]; then
+            echo "Error: Missing required pattern docs/**/*.sql"
+            exit 1
+          fi
+
+          if [ $PDF_COUNT -lt 1 ] && [ $PNG_COUNT -lt 1 ]; then
+            echo "Error: Missing required document pattern docs/**/*.pdf or docs/**/*.png"
+            exit 1
+          fi
+
+          echo "All required documentation checks passed successfully."
