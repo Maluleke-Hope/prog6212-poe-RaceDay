@@ -1,0 +1,16 @@
+# RaceDay RESTful API Endpoint Specification Plan
+
+| HTTP Method | Route | Description | Role Required | Request Body | Expected Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/auth/register` | Registers a new user account as Organiser or Participant. | None (Public) | `{"fullName": "John Doe", "email": "john@example.com", "password": "Pass123!", "role": "Participant"}` | `201 Created` - User created.<br>`400 Bad Request` - Validation failure.<br>`409 Conflict` - Email already exists. |
+| **POST** | `/api/auth/login` | Authenticates user credentials and returns a JWT token. | None (Public) | `{"email": "john@example.com", "password": "Pass123!"}` | `200 OK` - Returns Bearer token.<br>`401 Unauthorized` - Invalid credentials. |
+| **GET** | `/api/events` | Retrieves all active road running, walking, and cycling events. | None (Public) | `None` | `200 OK` - Array of event objects.<br>`404 Not Found` - No events available. |
+| **POST** | `/api/events` | Creates a new event record. | Organiser | `{"title": "Cape Town Cycle Tour", "eventType": "Cycling", "eventDate": "2026-10-15T06:00:00", "location": "Cape Town"}` | `201 Created` - Event details.<br>`400 Bad Request` - Invalid data.<br>`401 Unauthorized` - Missing token.<br>`403 Forbidden` - Insufficient permissions. |
+| **PUT** | `/api/events/{id}` | Updates details for an existing event. | Organiser | `{"title": "Updated Tour Title", "eventDate": "2026-10-20T06:00:00"}` | `200 OK` - Updated event object.<br>`404 Not Found` - Event ID does not exist.<br>`403 Forbidden` - Not event owner. |
+| **DELETE** | `/api/events/{id}` | Removes an event and associated categories. | Organiser | `None` | `204 No Content` - Deletion successful.<br>`404 Not Found` - Event ID not found. |
+| **POST** | `/api/categories` | Adds a distance/entry category to an event. | Organiser | `{"eventId": 1, "categoryName": "42km Open", "distanceKm": 42.2, "entryFee": 350.00}` | `201 Created` - Category object.<br>`404 Not Found` - Event not found. |
+| **GET** | `/api/categories/event/{eventId}` | Retrieves all categories for a given event. | None (Public) | `None` | `200 OK` - Array of categories.<br>`404 Not Found` - Invalid event ID. |
+| **POST** | `/api/enrolments` | Registers a participant for an event category. | Participant | `{"eventId": 1, "categoryId": 2}` | `201 Created` - Enrolment with bib number.<br>`400 Bad Request` - Category full.<br>`409 Conflict` - Already registered. |
+| **GET** | `/api/enrolments/my-enrolments` | Fetches logged-in participant's event history. | Participant | `None` | `200 OK` - Array of enrolments.<br>`401 Unauthorized` - Unauthenticated. |
+| **POST** | `/api/results` | Captures finishing times and ranks for an event. | Organiser | `{"enrolmentId": 10, "finishTime": "03:45:12", "overallRank": 14}` | `201 Created` - Result logged.<br>`400 Bad Request` - Invalid time structure. |
+| **GET** | `/api/weather/{eventId}` | Retrieves forecast or weather conditions for an event route. | Any | `None` | `200 OK` - Temperature, wind, and conditions.<br>`404 Not Found` - Weather unavailable. |
