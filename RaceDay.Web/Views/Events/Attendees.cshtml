@@ -1,0 +1,37 @@
+﻿@using System.Text.Json
+@{
+    ViewData["Title"] = "Attendees";
+    var attendees = Model;
+}
+
+<div class="container mt-4">
+    <h2>Event Attendees</h2>
+    <a href="/Events" class="btn btn-secondary mb-3">Back to Events</a>
+
+    @if (attendees.ValueKind == JsonValueKind.Array && attendees.GetArrayLength() > 0)
+    {
+        <table class="table table-striped border">
+            <thead>
+                <tr>
+                    <th>Participant Name</th>
+                    <th>Category</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in attendees.EnumerateArray())
+                {
+                    <tr>
+                        <td>@item.GetProperty("userFullName").GetString()</td>
+                        <td>@item.GetProperty("categoryName").GetString()</td>
+                        <td><span class="badge bg-success">@item.GetProperty("status").GetString()</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+    else
+    {
+        <div class="alert alert-info">No participants have enrolled yet.</div>
+    }
+</div>

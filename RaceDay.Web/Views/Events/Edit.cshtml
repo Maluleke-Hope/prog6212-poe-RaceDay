@@ -1,0 +1,53 @@
+﻿@using System.Text.Json
+@{
+    ViewData["Title"] = "Edit Event";
+    var ev = Model;
+}
+
+<div class="container mt-5" style="max-width: 600px;">
+    <h2 class="mb-4">Edit Event</h2>
+    
+    @if (ViewBag.Error != null) 
+    { 
+        <div class="alert alert-danger">@ViewBag.Error</div> 
+    }
+    
+    <form method="post">
+        <div class="mb-3">
+            <label class="form-label">Title</label>
+            <input type="text" name="title" value="@ev?.Title" class="form-control" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Description</label>
+            <textarea name="description" class="form-control" required>@ev?.Description</textarea>
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="date" id="eventDate" name="date" value="@ev?.Date.ToString("yyyy-MM-dd")" class="form-control" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Location</label>
+            <input type="text" name="location" value="@ev?.Location" class="form-control" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Distance (km)</label>
+            <input type="number" step="0.1" name="distance" value="@ev?.Distance" class="form-control" required />
+        </div>
+        <div class="mb-3">
+            <label class="form-label">Event Type</label>
+            <select name="eventType" class="form-control">
+                <option value="Run" selected="@(ev?.EventType == "Run")">Run</option>
+                <option value="Walk" selected="@(ev?.EventType == "Walk")">Walk</option>
+                <option value="Cycle" selected="@(ev?.EventType == "Cycle")">Cycle</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="/Events" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('eventDate').min = new Date().toISOString().split("T")[0];
+    </script>
+}

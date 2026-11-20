@@ -1,0 +1,44 @@
+﻿@{
+    ViewData["Title"] = "Register";
+}
+
+<div class="d-flex align-items-center justify-content-center" style="min-height: 80vh;">
+    <div class="card p-5 shadow-lg border-0" style="width: 100%; max-width: 500px;">
+        <div class="text-center mb-4">
+            <h2 class="mb-2">Create an Account</h2>
+            <p class="text-muted">Join RaceDay to manage or participate in events</p>
+        </div>
+        
+        @if (ViewBag.Error != null)
+        {
+            <div class="alert alert-danger" style="border-radius: 8px;">@ViewBag.Error</div>
+        }
+
+        <form method="post">
+            <div class="mb-3">
+                <label class="form-label font-weight-bold">Full Name</label>
+                <input type="text" name="fullName" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label font-weight-bold">Email Address</label>
+                <input type="email" name="email" class="form-control" required />
+            </div>
+            <div class="mb-3">
+                <label class="form-label font-weight-bold">Password</label>
+                <input type="password" name="password" class="form-control" required minlength="6" />
+            </div>
+            <div class="mb-4">
+                <label class="form-label font-weight-bold">I am a...</label>
+                <select name="role" class="form-control" required>
+                    <option value="Participant">Participant (Join events)</option>
+                    <option value="Organiser">Organiser (Create events)</option>
+                </select>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2" style="font-size: 1.1rem;">Register</button>
+        </form>
+        
+        <div class="text-center mt-3">
+            <span class="text-muted">Already have an account? <a href="/Auth/Login" class="text-decoration-none">Login here</a></span>
+        </div>
+    </div>
+</div>
