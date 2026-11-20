@@ -1,53 +1,57 @@
-
+using System.Reflection;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
 using RaceDay.API.Data;
+using RaceDay.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
-builder.Services.AddDbContext<RaceDayDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// 1. Database Context (SQL Server)
+builder.Services.AddDbContext<RaceDayDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
-// Add session support
-builder.Services.AddDistributedMemoryCache();
-builder.Services.AddSession(options =>
-{
-    options.IdleTimeout = TimeSpan.FromMinutes(30);
-    options.Cookie.HttpOnly = true;
-    options.Cookie.IsEssential = true;
-});
+// 2. Services
+builder.Services.AddScoped<IBlobService, BlobService>();
 
-builder.Services.AddControllers();
+// 3. Cookie Authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        // CHANGED THIS LINE TO FORCE BROWSER TO FORGET OLD SESSION
+        options.Cookie.Name = "RaceDay.Auth.V2";
+        options.Cookie.HttpOnly = true;
+        options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Events.OnRedirectToLogin = ctx =>
+        {
+            ctx.Response.StatusCode = StatusCodes.Status401Unauthorized;
+            return Task.CompletedTask;
+        };
+        options.Events.OnRedirectToAccessDenied = ctx =>
+        {
+            ctx.Response.StatusCode = StatusCodes.Status403Forbidden;
+            return Task.CompletedTask;
+        };
+    });
 
-// Register Swagger/OpenAPI services
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddAuthorization();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
+builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-// Automatically create database and tables on startup if they don't exist
-using (var scope = app.Services.CreateScope())
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
 {
-    var dbContext = scope.ServiceProvider.GetRequiredService<RaceDayDbContext>();
-    dbContext.Database.EnsureCreated();
+    app.MapOpenApi();
 }
-
-// Enable Swagger globally for assessment testing
-app.UseSwagger();
-app.UseSwaggerUI(c =>
-{
-    c.SwaggerEndpoint("/swagger/v1/swagger.json", "RaceDay API v1");
-    c.RoutePrefix = string.Empty; // Launches Swagger directly at http://localhost:5000/
-});
-
-app.UseHttpsRedirection();
-
-// Session middleware must run before Authorization and Controllers
-app.UseSession();
-
+app.UseStaticFiles();
+app.UseAuthentication();
+app.UseAuthorization();
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-
-
-
 app.Run();

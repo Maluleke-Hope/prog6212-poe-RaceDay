@@ -3,35 +3,42 @@ using RaceDay.API.Models;
 
 namespace RaceDay.API.Data
 {
+    // Application database context class inheriting from Entity Framework Core
     public class RaceDayDbContext : DbContext
     {
+        // Constructor initializing database options (connection strings, providers)
         public RaceDayDbContext(DbContextOptions<RaceDayDbContext> options)
             : base(options)
         {
         }
 
+        // Entity sets mapping domain models to database tables
         public DbSet<Event> Events { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<Category> Categories { get; set; }
         public DbSet<Enrolment> Enrolments { get; set; }
         public DbSet<Result> Results { get; set; }
 
+        // Configures table relationships, keys, and foreign key cascade rules
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
 
+            // Configure Enrolment -> User foreign key with restrict delete behavior
             modelBuilder.Entity<Enrolment>()
                 .HasOne(e => e.User)
                 .WithMany()
                 .HasForeignKey(e => e.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure Enrolment -> Event foreign key with restrict delete behavior
             modelBuilder.Entity<Enrolment>()
                 .HasOne(e => e.Event)
                 .WithMany()
                 .HasForeignKey(e => e.EventId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // Configure Enrolment -> Category foreign key with restrict delete behavior
             modelBuilder.Entity<Enrolment>()
                 .HasOne(e => e.Category)
                 .WithMany()

@@ -1,25 +1,16 @@
-﻿using System.ComponentModel.DataAnnotations;
+﻿namespace RaceDay.API.Models;
 
-namespace RaceDay.API.Models
+public class Enrolment
 {
-    public class Enrolment
-    {
-        [Key]
-        public int EnrolmentId { get; set; }
+    public int EnrolmentId { get; set; }
+    public int UserId { get; set; }
+    public int EventId { get; set; }
+    public int CategoryId { get; set; }
+    public string Status { get; set; } = "Pending";
+    
 
-        [Required]
-        public int UserId { get; set; }
-        public User? User { get; set; }
-
-        [Required]
-        public int EventId { get; set; }
-        public Event? Event { get; set; }
-
-        [Required]
-        public int CategoryId { get; set; }
-        public Category? Category { get; set; }
-
-        [Required]
-        public string Status { get; set; } = "Enrolled";
-    }
+    public User? User { get; set; }
+    public Event? Event { get; set; }
+    public Category? Category { get; set; }
+    public Result? Result { get; set; } // THIS WAS MISSING
 }

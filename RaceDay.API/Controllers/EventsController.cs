@@ -1,146 +1,110 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RaceDay.API.Authorization;
 using RaceDay.API.Data;
+using RaceDay.API.DTOs;
 using RaceDay.API.Models;
+using RaceDay.API.Services;
 
-namespace RaceDay.API.Controllers
+namespace RaceDay.API.Controllers;
+
+[ApiController]
+[Route("api/events")]
+[Authorize]
+public class EventsController : ControllerBase
 {
-    [Route("api/v1/[controller]")]
-    [ApiController]
-    public class EventsController : ControllerBase
+    private readonly RaceDayDbContext _db;
+    private readonly IBlobService _blob;
+
+    public EventsController(RaceDayDbContext db, IBlobService blob)
     {
-        private readonly RaceDayDbContext _context;
+        _db = db;
+        _blob = blob;
+    }
 
-        public EventsController(RaceDayDbContext context)
+    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    [HttpGet]
+    public async Task<IActionResult> GetAll() =>
+        Ok(await _db.Events.Include(e => e.Categories).ToListAsync());
+
+    [HttpGet("{id}")]
+    public async Task<IActionResult> Get(int id)
+    {
+        var ev = await _db.Events.Include(e => e.Categories)
+                                 .FirstOrDefaultAsync(e => e.EventId == id);
+        return ev is null ? NotFound() : Ok(ev);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Organiser)]
+    public async Task<IActionResult> Create(EventCreateDto dto)
+    {
+        if (dto.Date < DateTime.UtcNow.Date)
+            return BadRequest("Event date cannot be in the past.");
+
+        var ev = new Event
         {
-            _context = context;
-        }
+            Title = dto.Title,
+            Description = dto.Description,
+            Date = dto.Date,
+            Location = dto.Location,
+            Distance = dto.Distance,
+            EventType = dto.EventType,
+            OrganiserId = CurrentUserId
+        };
+        _db.Events.Add(ev);
+        await _db.SaveChangesAsync();
+        return CreatedAtAction(nameof(Get), new { id = ev.EventId }, ev);
+    }
 
-        // GET: api/v1/Events
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<Event>>> GetEvents()
-        {
-            return await _context.Events
-                .Include(e => e.Categories)
-                .Include(e => e.Enrolments)
-                .ToListAsync();
-        }
+    [HttpPut("{id}")]
+    [Authorize(Roles = AppRoles.Organiser)]
+    public async Task<IActionResult> Update(int id, EventCreateDto dto)
+    {
+        if (dto.Date < DateTime.UtcNow.Date)
+            return BadRequest("Event date cannot be in the past.");
 
-        // GET: api/v1/Events/5
-        [HttpGet("{id}")]
-        public async Task<ActionResult<Event>> GetEvent(int id)
-        {
-            var eventItem = await _context.Events
-                .Include(e => e.Categories)
-                .Include(e => e.Enrolments)
-                .FirstOrDefaultAsync(e => e.EventId == id);
+        var ev = await _db.Events.FindAsync(id);
+        if (ev is null) return NotFound();
+        if (ev.OrganiserId != CurrentUserId) return Forbid();
 
-            if (eventItem == null)
-            {
-                return NotFound();
-            }
+        ev.Title = dto.Title;
+        ev.Description = dto.Description;
+        ev.Date = dto.Date;
+        ev.Location = dto.Location;
+        ev.Distance = dto.Distance;
+        ev.EventType = dto.EventType;
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 
-            return eventItem;
-        }
+    [HttpDelete("{id}")]
+    [Authorize(Roles = AppRoles.Organiser)]
+    public async Task<IActionResult> Delete(int id)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev is null) return NotFound();
+        if (ev.OrganiserId != CurrentUserId) return Forbid();
+        _db.Events.Remove(ev);
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
 
-        // POST: api/v1/Events
-        [HttpPost]
-        public async Task<ActionResult<Event>> PostEvent([FromBody] Event eventModel)
-        {
-            // Enforce Organiser role check via session
-            var userRole = HttpContext.Session.GetString("UserRole");
-            if (string.IsNullOrEmpty(userRole) || userRole != "Organiser")
-            {
-                return Unauthorized(new { message = "Access denied. Only Organisers can create events." });
-            }
+    [HttpPost("{id}/image")]
+    [Authorize(Roles = AppRoles.Organiser)]
+    [RequestSizeLimit(5_000_000)]
+    public async Task<IActionResult> UploadImage(int id, IFormFile file)
+    {
+        var ev = await _db.Events.FindAsync(id);
+        if (ev is null) return NotFound();
+        if (ev.OrganiserId != CurrentUserId) return Forbid();
+        if (file is null || file.Length == 0) return BadRequest("No file supplied.");
 
-            if (!ModelState.IsValid)
-            {
-                return BadRequest(ModelState);
-            }
-
-            _context.Events.Add(eventModel);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetEvent), new { id = eventModel.EventId }, eventModel);
-        }
-
-        // PUT: api/v1/Events/5
-        [HttpPut("{id}")]
-        public async Task<IActionResult> PutEvent(int id, [FromBody] Event updatedEvent)
-        {
-            // Enforce Organiser role check via session
-            var userRole = HttpContext.Session.GetString("UserRole");
-            if (string.IsNullOrEmpty(userRole) || userRole != "Organiser")
-            {
-                return Unauthorized(new { message = "Access denied. Only Organisers can update events." });
-            }
-
-            if (id != updatedEvent.EventId)
-            {
-                return BadRequest("Event ID mismatch.");
-            }
-
-            var existingEvent = await _context.Events.FindAsync(id);
-            if (existingEvent == null)
-            {
-                return NotFound();
-            }
-
-            existingEvent.Title = updatedEvent.Title;
-            existingEvent.Description = updatedEvent.Description;
-            existingEvent.Date = updatedEvent.Date;
-            existingEvent.Location = updatedEvent.Location;
-            existingEvent.Distance = updatedEvent.Distance;
-            existingEvent.EventType = updatedEvent.EventType;
-
-            _context.Entry(existingEvent).State = EntityState.Modified;
-
-            try
-            {
-                await _context.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!EventExists(id))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return NoContent();
-        }
-
-        // DELETE: api/v1/Events/5
-        [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteEvent(int id)
-        {
-            // Enforce Organiser role check via session
-            var userRole = HttpContext.Session.GetString("UserRole");
-            if (string.IsNullOrEmpty(userRole) || userRole != "Organiser")
-            {
-                return Unauthorized(new { message = "Access denied. Only Organisers can delete events." });
-            }
-
-            var eventItem = await _context.Events.FindAsync(id);
-            if (eventItem == null)
-            {
-                return NotFound();
-            }
-
-            _context.Events.Remove(eventItem);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
-        }
-
-        private bool EventExists(int id)
-        {
-            return _context.Events.Any(e => e.EventId == id);
-        }
+        ev.ImageUrl = await _blob.UploadAsync(file);
+        await _db.SaveChangesAsync();
+        return Ok(new { ev.ImageUrl });
     }
 }

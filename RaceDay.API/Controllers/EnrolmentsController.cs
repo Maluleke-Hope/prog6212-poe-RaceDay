@@ -1,63 +1,91 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using RaceDay.API.Authorization;
 using RaceDay.API.Data;
 using RaceDay.API.DTOs;
 using RaceDay.API.Models;
 
-namespace RaceDay.API.Controllers
+namespace RaceDay.API.Controllers;
+
+[ApiController]
+[Route("api/enrolments")]
+[Authorize]
+public class EnrolmentsController : ControllerBase
 {
-    [ApiController]
-    [Route("api/v1/[controller]")]
-    public class EnrolmentsController : ControllerBase
+    private readonly RaceDayDbContext _db;
+    public EnrolmentsController(RaceDayDbContext db) => _db = db;
+
+    private int CurrentUserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+    [HttpPost]
+    [Authorize(Roles = AppRoles.Participant)]
+    public async Task<IActionResult> Enrol(EnrolmentCreateDto dto)
     {
-        private readonly RaceDayDbContext _context;
+        var exists = await _db.Enrolments
+            .AnyAsync(e => e.UserId == CurrentUserId && e.EventId == dto.EventId);
+        if (exists) return Conflict("Already enrolled in this event.");
 
-        public EnrolmentsController(RaceDayDbContext context)
+        var enrolment = new Enrolment
         {
-            _context = context;
-        }
+            UserId = CurrentUserId,
+            EventId = dto.EventId,
+            CategoryId = dto.CategoryId,
+            Status = "Confirmed"
+        };
+        _db.Enrolments.Add(enrolment);
+        await _db.SaveChangesAsync();
+        return Ok(enrolment);
+    }
 
-        [HttpGet]
-        public async Task<ActionResult<IEnumerable<EnrolmentReadDto>>> GetEnrolments()
-        {
-            var enrolments = await _context.Enrolments
-                .Select(e => new EnrolmentReadDto
-                {
-                    EnrolmentId = e.EnrolmentId,
-                    UserId = e.UserId,
-                    EventId = e.EventId,
-                    CategoryId = e.CategoryId,
-                    Status = e.Status
-                })
-                .ToListAsync();
+    [HttpGet("mine")]
+    [Authorize(Roles = AppRoles.Participant)]
+    public async Task<IActionResult> Mine()
+    {
+        var enrolments = await _db.Enrolments
+            .Where(e => e.UserId == CurrentUserId)
+            .Select(e => new { e.EnrolmentId, e.EventId, e.UserId, e.Status })
+            .ToListAsync();
+        return Ok(enrolments);
+    }
 
-            return Ok(enrolments);
-        }
+    [HttpGet("event/{eventId}")]
+    [Authorize(Roles = AppRoles.Organiser)]
+    public async Task<IActionResult> ForEvent(int eventId)
+    {
+        var ev = await _db.Events.FindAsync(eventId);
+        if (ev is null) return NotFound();
+        if (ev.OrganiserId != CurrentUserId) return Forbid();
 
-        [HttpPost]
-        public async Task<ActionResult<EnrolmentReadDto>> CreateEnrolment(CreateEnrolmentDto dto)
-        {
-            var enrolment = new Enrolment
+        var attendees = await _db.Enrolments
+            .Include(e => e.User)
+            .Include(e => e.Category)
+            .Where(e => e.EventId == eventId)
+            .Select(e => new
             {
-                UserId = dto.UserId,
-                EventId = dto.EventId,
-                CategoryId = dto.CategoryId,
-                Status = "Enrolled"
-            };
+                e.EnrolmentId,
+                e.EventId,
+                e.UserId,
+                e.Status,
+                UserFullName = e.User != null ? e.User.FullName : "Unknown",
+                CategoryName = e.Category != null ? e.Category.Name : "N/A"
+            })
+            .ToListAsync();
 
-            _context.Enrolments.Add(enrolment);
-            await _context.SaveChangesAsync();
+        return Ok(attendees);
+    }
 
-            var readDto = new EnrolmentReadDto
-            {
-                EnrolmentId = enrolment.EnrolmentId,
-                UserId = enrolment.UserId,
-                EventId = enrolment.EventId,
-                CategoryId = enrolment.CategoryId,
-                Status = enrolment.Status
-            };
+    [HttpDelete("{id}")]
+    [Authorize(Roles = AppRoles.Participant)]
+    public async Task<IActionResult> Cancel(int id)
+    {
+        var enrolment = await _db.Enrolments.FindAsync(id);
+        if (enrolment is null) return NotFound();
+        if (enrolment.UserId != CurrentUserId) return Forbid();
 
-            return CreatedAtAction(nameof(GetEnrolments), new { id = enrolment.EnrolmentId }, readDto);
-        }
+        _db.Enrolments.Remove(enrolment);
+        await _db.SaveChangesAsync();
+        return NoContent();
     }
 }
